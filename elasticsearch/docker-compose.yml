@@ -1,0 +1,56 @@
+version: "3"
+services:
+  elasticsearch:
+    image: elasticsearch:7.17.6
+    container_name: elasticsearch
+    privileged: true
+    environment:
+      - "cluster.name=elasticsearch" #设置集群名称为elasticsearch
+      - "discovery.type=single-node" #以单一节点模式启动
+      - "ES_JAVA_OPTS=-Xms4g -Xmx4g" #设置使用jvm内存大小
+      - "xpack.security.enabled=false"
+      - "bootstrap.memory_lock=true"
+    volumes:
+        #插件文件挂载
+      - ./plugins:/usr/share/elasticsearch/plugins
+        #数据文件挂载
+      - ./data:/usr/share/elasticsearch/data
+        #日志文件挂载
+      - ./logs:/usr/share/elasticsearch/logs
+    ports:
+      - 9200:9200
+      - 9300:9300
+    networks:
+      - elastic
+#     deploy:
+#      resources:
+#         limits:
+#            cpus: "2"
+#            memory: 4G
+#         reservations:
+#            memory: 2G
+           
+  kibana:
+    image: kibana:7.17.6
+    container_name: kibana
+    depends_on:
+      - elasticsearch #kibana在elasticsearch启动之后再启动
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200 #设置访问elasticsearch的地址
+      I18N_LOCALE: zh-CN
+    ports:
+      - 5601:5601
+    networks:
+      - elastic
+  elasticsearch-head:
+    image: mobz/elasticsearch-head:5
+    container_name: elasticsearch-head
+    ports:
+      - 9100:9100
+    networks:
+      - elastic 
+
+networks:
+  elastic:
+    driver: bridge
+

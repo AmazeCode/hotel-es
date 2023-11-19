@@ -1,0 +1,583 @@
+GET _search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+# 构建酒店mapping
+PUT /hotel
+{
+  "mappings": {
+    "properties": {
+      "id":{
+        "type": "keyword"
+      },
+      "name":{
+        "type": "text",
+        "analyzer": "ik_max_word",
+        "copy_to": "all"
+      },
+      "address":{
+        "type": "keyword",
+        "index": false
+      },
+      "price":{
+        "type": "integer"
+      },
+      "score":{
+        "type":"integer"
+      },
+      "brand":{
+        "type": "keyword",
+        "copy_to": "all"
+      },
+      "city":{
+        "type": "keyword"
+      },
+      "starName":{
+        "type": "keyword"
+      },
+      "business":{
+        "type": "keyword",
+        "copy_to": "all"
+      },
+      "location":{
+        "type": "geo_point"
+      },
+      "pic":{
+        "type": "keyword",
+        "index": false
+      },
+      "all":{
+        "type": "text",
+        "analyzer": "ik_max_word"
+      }
+    }
+  }
+}
+
+# 删除索引库
+
+DELETE /hotel
+
+GET /hotel/_search
+
+# match 推荐
+GET /hotel/_search
+{
+  "query":{
+    "match": {
+      "all": "外滩如家"
+    }
+  }
+}
+
+# multi_match 查询字段越多性能越差
+GET /hotel/_search
+{
+  "query": {
+    "multi_match": {
+      "query": "如家外滩",
+      "fields": ["brand","name","business"]
+    }
+  }
+}
+
+# term查询
+GET /hotel/_search
+{
+  "query": {
+    "term": {
+      "city": {
+        "value": "上海"
+      }
+    }
+  }
+}
+
+# range查询
+GET /hotel/_search
+{
+  "query": {
+    "range": {
+      "price": {
+        "gte": 300,
+        "lte": 500
+      }
+    }
+  }
+}
+
+# distance 查询
+GET /hotel/_search
+{
+  "query":{
+    "geo_distance":{
+      "distance":"2km",
+      "location":"31.21,121.5"
+    }
+  }
+}
+
+# function_score
+GET /hotel/_search
+{
+  "query": {
+    "function_score": {
+      "query": {"match": {
+        "all": "外滩"
+      }},
+      "functions": [
+        {
+          "filter": {"term": {
+            "brand": "如家"
+          }},
+          "weight": 2
+        }
+      ],
+      "boost_mode": "sum"
+    }
+  }
+}
+
+# 组合查询
+GET /hotel/_search
+{
+  "query": {
+    "bool":{
+      "must": [
+        {"term": {
+          "city": {
+            "value": "上海"
+          }
+        }}
+      ],
+      "should": [
+        {"term": {
+          "brand": {
+            "value": "皇冠假日"
+          }
+        }},
+        {"term": {
+          "brand": {
+            "value": "华美达"
+          }
+        }}
+      ],
+      "must_not": [
+        {"range":{
+          "price": {
+            "lte": 500
+          }
+        }}
+      ],
+      "filter": [
+        {"range": {
+          "score": {
+            "gte": 45
+          }
+        }}
+      ]
+    }
+  }
+}
+
+# bool查询
+GET /hotel/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {"match": {
+          "name": "如家"
+        }}
+      ],
+      "must_not": [
+        {"range": {
+          "price": {
+            "gt": 400
+          }
+        }}
+      ],
+      "filter": [
+        {"geo_distance": {
+          "distance": "10km",
+          "location": {
+            "lat": 31.21,
+            "lon": 121.5
+          }
+        }}
+      ]
+    }
+  }
+}
+
+# 排序
+GET /hotel/_search
+{
+  "query": {
+    "match_all": {}
+  },
+  "sort": [
+    {
+      "price": "desc"
+    },
+    {
+      "_geo_distance": {
+        "location": {
+          "lat": 31.3,
+          "lon": 121.5
+        },
+        "order": "asc",
+        "unit": "km"
+      }
+    }
+  ]
+}
+
+# 分页
+GET /hotel/_search
+{
+  "query": {
+    "match_all": {}
+  },
+  "sort": [
+    {
+      "price":"desc"
+    }
+  ],
+  "from": 0,
+  "size": 10
+}
+
+# 高亮查询,默认情况下，es搜索字段必须与高亮字段一致
+GET /hotel/_search
+{
+  "query": {
+    "match": {
+      "all":"如家"
+    }
+  },
+  "highlight": {
+    "fields": {
+      "name": {
+        "require_field_match": "false"
+      }
+    }
+  }
+}
+
+# 新增广告字段
+POST /hotel/_update/200208940
+{
+  "doc":{
+    "isAD": true
+  }
+}
+# 新增广告字段
+POST /hotel/_update/644417
+{
+  "doc":{
+    "isAD": true
+  }
+}
+
+# Bucket 聚合
+GET /hotel/_search
+{
+  "size": 0,
+  "aggs": {
+    "brandAgg": {
+      "terms": {
+        "field": "brand",
+        "size": 20
+      }
+    }
+  }
+}
+
+# 聚合功能,自定义排序规则
+GET /hotel/_search
+{
+  "size": 0,
+  "aggs": {
+    "brandAgg": {
+      "terms": {
+        "field": "brand",
+        "size": 20,
+        "order": {
+          "_count": "asc"
+        }
+      }
+    }
+  }
+}
+
+# 聚合功能,限定聚合范围
+GET /hotel/_search
+{
+  "query":{
+    "range": {
+      "price": {
+        "lte": 200
+      }
+    }
+  },
+  "size": 0,
+  "aggs": {
+    "brandAgg": {
+      "terms": {
+        "field": "brand",
+        "size": 20,
+        "order": {
+          "_count": "asc"
+        }
+      }
+    }
+  }
+}
+# 嵌套聚合metric
+GET /hotel/_search
+{
+  "size": 0,
+  "aggs": {
+    "brandAgg": {
+      "terms": {
+        "field": "brand",
+        "size": 20,
+        "order": {
+          "scoreAgg.avg": "desc"
+        }
+      },
+      "aggs": {
+        "scoreAgg": {
+          "stats": {
+            "field": "score"
+          }
+        }
+      }
+    }
+  }
+}
+
+# 测试拼音分词器
+POST /test/_analyze
+{
+  "text": ["如家酒店还不错"],
+  "analyzer": "my_analyzer"
+}
+
+DELETE /test
+
+# 自定义分词器,只是针对当前索引库
+PUT /test
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_analyzer":{
+          "tokenizer":"ik_max_word",
+          "filter": "py"
+        }
+      },
+      "filter": {
+        "py":{
+          "type":"pinyin",
+          "keep_full_pinyin": false,
+          "keep_joined_full_pinyin": true,
+          "keep_original":true,
+          "limit_first_letter_length": 16,
+          "remove_duplicated_term": true,
+          "none_chinese_pinyin_tokenze": false
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "name":{
+        "type":"text",
+        "analyzer": "my_analyzer",
+        "search_analyzer": "ik_smart"
+      }
+    }
+  }
+}
+
+
+# 测试pinyin 分词器
+POST /test/_doc/1
+{
+  "id":1,
+  "name":"狮子"
+}
+
+POST /test/_doc/2
+{
+  "id":2,
+  "name":"虱子"
+}
+
+GET /test/_search
+{
+  "query": {
+    "match": {
+      "name": "掉入狮子笼咋办"
+    }
+  }
+}
+
+# 自动补全的索引库
+PUT /test2
+{
+  "mappings": {
+    "properties": {
+      "title":{
+        "type": "completion"
+      }
+    }
+  }
+}
+
+# 示例数据
+POST /test2/_doc
+{
+  "title": ["Sony", "WH-1000XM3"]
+}
+
+POST /test2/_doc
+{
+  "title": ["SK-II", "PITERA"]
+}
+
+POST /test2/_doc
+{
+  "title": ["Nintendo", "switch"]
+}
+# 自动补全查询
+GET /test2/_search
+{
+  "suggest": {
+    "titleSuggest": {
+      "text":"s",
+      "completion":{
+        "field":"title",
+        "skip_duplicates":true,
+        "size":10
+      }
+    }
+  }
+}
+
+# 查看酒店数据结构
+GET /hotel/_mapping
+
+# 删除原来的索引库
+DELETE /hotel
+
+# 酒店索引库数据结构
+PUT /hotel
+{
+  "settings":{
+    "analysis": {
+      "analyzer": {
+        "text_anlyzer":{
+          "tokenizer":"ik_max_word",
+          "filter": "py"
+        },
+        "completion_analyzer":{
+          "tokenizer":"keyword",
+          "filter":"py"
+        }
+      },
+      "filter": {
+        "py":{
+          "type":"pinyin",
+          "keep_full_pinyin":false,
+          "keep_joined_full_pinyin":true,
+          "keep_original":true,
+          "limit_first_letter_length":16,
+          "remove_duplicated_term":true,
+          "none_chinese_pinyin_tokenize":false
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "id":{
+        "type": "keyword"
+      },
+      "name":{
+        "type": "text",
+        "analyzer": "text_anlyzer",
+        "search_analyzer": "ik_smart", 
+        "copy_to": "all"
+      },
+      "address":{
+        "type": "keyword",
+        "index": false
+      },
+      "price":{
+        "type": "integer"
+      },
+      "score":{
+        "type":"integer"
+      },
+      "brand":{
+        "type": "keyword",
+        "copy_to": "all"
+      },
+      "city":{
+        "type": "keyword"
+      },
+      "starName":{
+        "type": "keyword"
+      },
+      "business":{
+        "type": "keyword",
+        "copy_to": "all"
+      },
+      "location":{
+        "type": "geo_point"
+      },
+      "pic":{
+        "type": "keyword",
+        "index": false
+      },
+      "all":{
+        "type": "text",
+        "analyzer": "text_anlyzer",
+        "search_analyzer": "ik_smart"
+      },
+      "suggestion":{
+        "type":"completion",
+        "analyzer": "completion_analyzer"
+      }
+    }
+  }
+}
+
+# 验证重新导入数据
+GET /hotel/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+# 测试酒店自动补全(pinyin)
+GET /hotel/_search
+{
+  "suggest": {
+    "suggestions": {
+      "text": "sd",
+      "completion": {
+        "field": "suggestion",
+        "skip_duplicates":true,
+        "size":10
+      }
+    }
+  }
+}
