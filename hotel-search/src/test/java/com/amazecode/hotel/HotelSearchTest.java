@@ -43,7 +43,7 @@ public class HotelSearchTest {
     @BeforeEach
     void create() {
         client = new RestHighLevelClient(RestClient.builder(
-                HttpHost.create("http://localhost:9400")
+                HttpHost.create("http://192.168.0.103:9200")
         ));
     }
 
